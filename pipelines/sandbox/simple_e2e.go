@@ -3,6 +3,7 @@ package sandbox
 import (
 	"time"
 
+	"github.com/dmitryBe/weaver/internal/dsl/cache"
 	"github.com/dmitryBe/weaver/internal/dsl/config"
 	"github.com/dmitryBe/weaver/internal/dsl/expr"
 	"github.com/dmitryBe/weaver/internal/dsl/expr/request"
@@ -25,6 +26,13 @@ func init() {
 func buildSimpleE2E() *pipeline.Spec {
 	return pipeline.New().
 		Resilience(resilient.Default(100*time.Millisecond, 3)).
+		Cache(
+			cache.Key(expr.Tuple(
+				expr.Const("city"),
+				expr.Const("vertical"),
+				expr.Const("user_id"),
+			)).TTL(10*time.Second),
+		).
 		Input(
 			input.String("city"),
 			input.String("vertical"),
@@ -37,6 +45,18 @@ func buildSimpleE2E() *pipeline.Spec {
 				Into("user_segment").
 				Float().
 				Default(0),
+		).
+		Context(
+			"ctx_embed",
+			op.Model("embed_user").
+				Endpoint(config.Val("http://localhost:8001/embed")).
+				Request(
+					request.Object(
+						request.Field("user_id", expr.Context("user_id")),
+					),
+				).
+				Response(response.Path("response.0")).
+				Into("user_embedding"),
 		).
 		Retrieve(
 			"retrieve_candidates",
