@@ -1,0 +1,7 @@
+port: 8080
+env: development
+feature_store_fetch_max_parallelism: 4
+
+feature_store:
+  type: file
+  dir: testdata/featurestore/playground

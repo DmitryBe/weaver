@@ -1,0 +1,14 @@
+port: 8080
+env: development
+feature_store_fetch_max_parallelism: 4
+
+feature_store:
+  type: file
+  dir: testdata/featurestore/playground
+
+knowledge_graphs:
+  default:
+    type: bolt
+    uri: "neo4j+s://4061164d.databases.neo4j.io"
+    user: "neo4j"
+    password: "${NEO4J_DEFAULT_PASSWORD}"

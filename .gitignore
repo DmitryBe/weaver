@@ -1,0 +1,36 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+.gocache/
+
+# Editor/IDE
+*.swp
+*.swo
+*~
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+*.test
+*.out
+coverprofile
+coverage.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependencies (if used)
+/vendor/
+
+# Local environment files
+.env
+.env.*
+.envrc
+
+# Logs
+*.log

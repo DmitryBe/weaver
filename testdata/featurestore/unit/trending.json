@@ -1,0 +1,10 @@
+{
+  "almaty|food": {
+    "trending/brands": [
+      { "id": "kv-101", "brand_id": 101, "score": 0.88, "source": "kv" },
+      { "id": "kv-102", "brand_id": 102, "score": 0.76, "source": "kv" },
+      { "id": "kv-103", "brand_id": 103, "score": 0.55, "source": "kv" }
+    ]
+  }
+}
+

@@ -1,0 +1,22 @@
+{
+  "101": {
+    "brand/rating": 4.8,
+    "brand/price_tier": 2
+  },
+  "102": {
+    "brand/rating": 4.5,
+    "brand/price_tier": 1
+  },
+  "103": {
+    "brand/rating": 4.2,
+    "brand/price_tier": 3
+  },
+  "104": {
+    "brand/rating": 4.1,
+    "brand/price_tier": 2
+  },
+  "105": {
+    "brand/rating": 4.7,
+    "brand/price_tier": 1
+  }
+}

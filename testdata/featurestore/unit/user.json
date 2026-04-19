@@ -1,0 +1,8 @@
+{
+  "u1": {
+    "user/history_brands": [101, 102, 103],
+    "user/history_actions": [1, 2, 3],
+    "user/segment": 0.75,
+    "user/features": 1
+  }
+}
