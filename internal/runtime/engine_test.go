@@ -430,6 +430,93 @@ func TestEngineDebugSnapshotsRemainIsolatedAcrossLaterNestedMutations(t *testing
 	}
 }
 
+func TestEngineDoesNotMutateInitialStateWhenExecutorMutatesInput(t *testing.T) {
+	plan := &pipeline.CompiledPlan{
+		SpecName: "input_clone_safety",
+		Nodes: []pipeline.CompiledNode{
+			{
+				ID:        "mutate_input",
+				StageName: "mutate_input",
+				Kind:      pipeline.NodeKindCandidatesMutate,
+			},
+		},
+		Groups: []pipeline.ExecutionGroup{
+			{Index: 0, NodeIDs: []string{"mutate_input"}},
+		},
+		FinalNode: "mutate_input",
+	}
+
+	registry := runtime.NewRegistry()
+	registry.Register(pipeline.NodeKindCandidatesMutate, inputMutationExecutor{})
+
+	engine := runtime.NewEngine(registry)
+	initial := runtime.State{
+		Context: runtime.Context{
+			"user_id": "u1",
+		},
+		Candidates: []runtime.Candidate{
+			{"brand_id": 101},
+		},
+		Meta: runtime.Meta{RequestID: "req-input-clone"},
+	}
+
+	final, err := engine.Run(context.Background(), plan, initial, &runtime.ExecEnv{})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if _, ok := initial.Context["mutated"]; ok {
+		t.Fatalf("initial context mutated unexpectedly: %#v", initial.Context)
+	}
+	if _, ok := initial.Candidates[0]["score"]; ok {
+		t.Fatalf("initial candidate mutated unexpectedly: %#v", initial.Candidates[0])
+	}
+	if got, want := final.Candidates[0]["score"], 1.0; got != want {
+		t.Fatalf("unexpected final candidate score: got %#v want %#v", got, want)
+	}
+}
+
+func TestEngineIsolatesParallelNodeInputs(t *testing.T) {
+	plan := &pipeline.CompiledPlan{
+		SpecName: "parallel_input_isolation",
+		Nodes: []pipeline.CompiledNode{
+			{
+				ID:        "left",
+				StageName: "left",
+				Kind:      pipeline.NodeKindContextMutate,
+			},
+			{
+				ID:        "right",
+				StageName: "right",
+				Kind:      pipeline.NodeKindContextMutate,
+			},
+		},
+		Groups: []pipeline.ExecutionGroup{
+			{Index: 0, NodeIDs: []string{"left", "right"}},
+		},
+	}
+
+	executor := &parallelInputIsolationExecutor{
+		leftMutated: make(chan struct{}),
+	}
+	registry := runtime.NewRegistry()
+	registry.Register(pipeline.NodeKindContextMutate, executor)
+
+	engine := runtime.NewEngine(registry)
+	_, err := engine.Run(context.Background(), plan, runtime.State{
+		Context: runtime.Context{
+			"user_id": "u1",
+		},
+	}, &runtime.ExecEnv{})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if got, want := executor.Observed(), "u1"; got != want {
+		t.Fatalf("parallel sibling saw mutated state: got %q want %q", got, want)
+	}
+}
+
 type debugMutationExecutor struct{}
 
 func (debugMutationExecutor) Execute(_ context.Context, node pipeline.CompiledNode, in runtime.NodeInput, _ *runtime.ExecEnv) (runtime.NodeOutput, error) {
@@ -636,6 +723,42 @@ func TestEngineRecordsTimeoutWhenResilienceBudgetReached(t *testing.T) {
 	if got, want := metric.Attempts, 1; got != want {
 		t.Fatalf("unexpected resilience attempts: got %d want %d", got, want)
 	}
+}
+
+type inputMutationExecutor struct{}
+
+func (inputMutationExecutor) Execute(_ context.Context, _ pipeline.CompiledNode, in runtime.NodeInput, _ *runtime.ExecEnv) (runtime.NodeOutput, error) {
+	in.State.Context["mutated"] = true
+	in.State.Candidates[0]["score"] = 1.0
+	return runtime.NodeOutput{Candidates: in.State.Candidates}, nil
+}
+
+type parallelInputIsolationExecutor struct {
+	leftMutated chan struct{}
+	mu          sync.Mutex
+	observed    string
+}
+
+func (e *parallelInputIsolationExecutor) Execute(_ context.Context, node pipeline.CompiledNode, in runtime.NodeInput, _ *runtime.ExecEnv) (runtime.NodeOutput, error) {
+	switch node.ID {
+	case "left":
+		in.State.Context["user_id"] = "left"
+		close(e.leftMutated)
+	case "right":
+		<-e.leftMutated
+		e.mu.Lock()
+		e.observed = fmt.Sprint(in.State.Context["user_id"])
+		e.mu.Unlock()
+	default:
+		return runtime.NodeOutput{}, fmt.Errorf("unexpected node id %q", node.ID)
+	}
+	return runtime.NodeOutput{Context: in.State.Context}, nil
+}
+
+func (e *parallelInputIsolationExecutor) Observed() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.observed
 }
 
 func toFloat(value any) float64 {

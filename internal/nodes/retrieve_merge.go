@@ -14,9 +14,13 @@ func (RetrieveMergeExecutor) Execute(ctx context.Context, node pipeline.Compiled
 	_ = ctx
 	_ = env
 
-	merged := make([]runtime.Candidate, 0)
+	total := 0
 	for _, dep := range node.DependsOn {
-		merged = append(merged, runtime.CloneCandidates(in.Upstreams[dep].Candidates)...)
+		total += len(in.Upstreams[dep].Candidates)
+	}
+	merged := make([]runtime.Candidate, 0, total)
+	for _, dep := range node.DependsOn {
+		merged = append(merged, in.Upstreams[dep].Candidates...)
 	}
 
 	dedupField := ""

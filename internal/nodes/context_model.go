@@ -14,7 +14,7 @@ type ContextModelExecutor struct{}
 
 func (ContextModelExecutor) Execute(ctx context.Context, node pipeline.CompiledNode, in runtime.NodeInput, env *runtime.ExecEnv) (runtime.NodeOutput, error) {
 	out := runtime.CloneContext(in.State.Context)
-	working := runtime.CloneState(in.State)
+	working := in.State
 	for _, raw := range node.Ops {
 		current, ok := raw.(*op.ModelOp)
 		if !ok {

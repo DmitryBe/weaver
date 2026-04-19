@@ -39,7 +39,7 @@ func (CandidatesFetchExecutor) Execute(ctx context.Context, node pipeline.Compil
 		return runtime.NodeOutput{}, err
 	}
 
-	out := filterNilCandidates(runtime.CloneCandidates(in.State.Candidates))
+	out := cloneNonNilCandidates(in.State.Candidates)
 	if len(out) == 0 {
 		return runtime.NodeOutput{Candidates: out}, nil
 	}
@@ -79,6 +79,14 @@ func filterNilCandidates(candidates []runtime.Candidate) []runtime.Candidate {
 		out = append(out, candidate)
 	}
 	return out
+}
+
+func cloneNonNilCandidates(candidates []runtime.Candidate) []runtime.Candidate {
+	filtered := filterNilCandidates(candidates)
+	if len(filtered) == 0 {
+		return filtered
+	}
+	return runtime.CloneCandidates(filtered)
 }
 
 func groupCandidateFetchOpsByEntity(node pipeline.CompiledNode) (map[string][]*op.FetchOp, error) {

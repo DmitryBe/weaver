@@ -17,7 +17,7 @@ func (CandidatesMutateExecutor) Execute(ctx context.Context, node pipeline.Compi
 	_ = env
 
 	out := runtime.CloneCandidates(in.State.Candidates)
-	working := runtime.CloneState(in.State)
+	working := in.State
 	working.Candidates = out
 
 	for _, raw := range node.Ops {

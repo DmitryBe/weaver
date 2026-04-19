@@ -257,7 +257,7 @@ func recordResilienceMetric(ctx context.Context, env *ExecEnv, pipelineName stri
 }
 
 func applyNodeOutput(state State, node pipeline.CompiledNode, out NodeOutput) State {
-	next := CloneState(state)
+	next := state
 	switch node.Kind {
 	case pipeline.NodeKindContextFetch, pipeline.NodeKindContextModel, pipeline.NodeKindContextMutate:
 		next.Context = CloneContext(out.Context)

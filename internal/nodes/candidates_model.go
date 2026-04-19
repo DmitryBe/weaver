@@ -14,7 +14,7 @@ type CandidatesModelExecutor struct{}
 
 func (CandidatesModelExecutor) Execute(ctx context.Context, node pipeline.CompiledNode, in runtime.NodeInput, env *runtime.ExecEnv) (runtime.NodeOutput, error) {
 	out := runtime.CloneCandidates(in.State.Candidates)
-	working := runtime.CloneState(in.State)
+	working := in.State
 	working.Candidates = out
 
 	for _, raw := range node.Ops {
