@@ -40,6 +40,16 @@ func (CandidatesMutateExecutor) Execute(ctx context.Context, node pipeline.Compi
 			if current.Limit < len(out) {
 				out = out[:current.Limit]
 			}
+		case *op.DropOp:
+			for i := range out {
+				for _, field := range current.Fields {
+					delete(out[i], field)
+				}
+			}
+		case *op.DropExceptOp:
+			for i := range out {
+				out[i] = runtime.Candidate(keepOnlyMap(map[string]any(out[i]), current.Fields))
+			}
 		default:
 			return runtime.NodeOutput{}, fmt.Errorf("node %s unsupported candidates mutate op %T", node.ID, raw)
 		}
@@ -47,4 +57,21 @@ func (CandidatesMutateExecutor) Execute(ctx context.Context, node pipeline.Compi
 	}
 
 	return runtime.NodeOutput{Candidates: out}, nil
+}
+
+func keepOnlyMap(in map[string]any, fields []string) map[string]any {
+	if in == nil {
+		return nil
+	}
+	allowed := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		allowed[field] = struct{}{}
+	}
+	out := make(map[string]any, len(allowed))
+	for field, value := range in {
+		if _, ok := allowed[field]; ok {
+			out[field] = value
+		}
+	}
+	return out
 }

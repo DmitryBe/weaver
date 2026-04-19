@@ -407,6 +407,53 @@ func TestServeSurfaceRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestServeSurfaceAcceptsCandidateInputSchema(t *testing.T) {
+	registry := pipeline.NewRegistry()
+	registry.Register("test_suite", "candidate_input_validation_test", func() *pipeline.Spec {
+		return pipeline.New().
+			Input(
+				input.String("user_id"),
+				input.Candidates(
+					input.String("id"),
+					input.String("name"),
+				),
+			).
+			Candidates(
+				"post_rank",
+				op.Take(1),
+			)
+	})
+	if err := registry.BuildAll(); err != nil {
+		t.Fatalf("BuildAll failed: %v", err)
+	}
+
+	server := api.NewServer(newTestRunner(registry, &runtime.ExecEnv{}))
+
+	body, err := json.Marshal(api.SurfaceRequest{
+		RequestID: "req-good",
+		Context: map[string]any{
+			"user_id": "u1",
+		},
+		Candidates: []map[string]any{
+			{
+				"id":   "1",
+				"name": "Cafe",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/surface/test_suite.candidate_input_validation_test", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestServeRegistryListsBuiltPipelines(t *testing.T) {
 	registry := pipeline.NewRegistry()
 	registry.Register("zeta", "one", func() *pipeline.Spec {

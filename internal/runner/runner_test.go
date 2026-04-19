@@ -123,6 +123,47 @@ func TestExecuteCanNormalizeInputs(t *testing.T) {
 	}
 }
 
+func TestExecuteValidatesCandidateInputSchema(t *testing.T) {
+	current := newCandidateSchemaRunner(t)
+
+	_, err := current.Execute(context.Background(), ExecuteRequest{
+		Pipeline: "test_suite.candidate_schema_runner",
+		Context: map[string]any{
+			"user_id": "u1",
+		},
+		Candidates: []map[string]any{
+			{"id": "123"},
+		},
+	})
+	if !IsInvalidInput(err) {
+		t.Fatalf("expected invalid input error, got %v", err)
+	}
+}
+
+func TestExecuteCanNormalizeCandidateInputs(t *testing.T) {
+	current := newCandidateSchemaRunner(t)
+
+	result, err := current.Execute(context.Background(), ExecuteRequest{
+		Pipeline:       "test_suite.candidate_schema_runner",
+		NormalizeInput: true,
+		Context: map[string]any{
+			"user_id": "u1",
+		},
+		Candidates: []map[string]any{
+			{
+				"id":    "123",
+				"score": "7",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+	if got, want := result.State.Candidates[0]["score"], 7; got != want {
+		t.Fatalf("unexpected normalized candidate value: got %#v want %#v", got, want)
+	}
+}
+
 func TestExecuteUsesPipelineCache(t *testing.T) {
 	current, store := newCachedRunner(t, 5*time.Minute)
 
@@ -285,6 +326,35 @@ func newTypedRunner(t *testing.T) *Runner {
 			Context(
 				"ctx_prepare",
 				op.Set("limit_copy", expr.Context("limit")).Int(),
+			).
+			Candidates("post_rank", op.Take(1))
+	})
+	if err := registry.BuildAll(); err != nil {
+		t.Fatalf("BuildAll failed: %v", err)
+	}
+
+	nodeRegistry := runtime.NewRegistry()
+	nodes.RegisterDefaults(nodeRegistry)
+
+	return &Runner{
+		Registry: registry,
+		Engine:   runtime.NewEngine(nodeRegistry),
+		Env:      &runtime.ExecEnv{},
+	}
+}
+
+func newCandidateSchemaRunner(t *testing.T) *Runner {
+	t.Helper()
+
+	registry := pipeline.NewRegistry()
+	registry.Register("test_suite", "candidate_schema_runner", func() *pipeline.Spec {
+		return pipeline.New().
+			Input(
+				input.String("user_id"),
+				input.Candidates(
+					input.String("id"),
+					input.Int("score"),
+				),
 			).
 			Candidates("post_rank", op.Take(1))
 	})

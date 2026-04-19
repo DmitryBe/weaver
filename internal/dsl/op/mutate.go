@@ -43,7 +43,7 @@ func (o *SetOp) String() *SetOp {
 }
 
 type DropOp struct {
-	Field string
+	Fields []string
 }
 
 func (*DropOp) isOp() {}
@@ -52,6 +52,20 @@ func (*DropOp) Kind() Kind {
 	return KindMutate
 }
 
-func Drop(field string) *DropOp {
-	return &DropOp{Field: field}
+func Drop(fields ...string) *DropOp {
+	return &DropOp{Fields: append([]string(nil), fields...)}
+}
+
+type DropExceptOp struct {
+	Fields []string
+}
+
+func (*DropExceptOp) isOp() {}
+
+func (*DropExceptOp) Kind() Kind {
+	return KindMutate
+}
+
+func DropExcept(fields ...string) *DropExceptOp {
+	return &DropExceptOp{Fields: append([]string(nil), fields...)}
 }

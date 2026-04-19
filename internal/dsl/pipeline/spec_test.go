@@ -114,3 +114,25 @@ func TestValidateRejectsInvalidResilienceConfig(t *testing.T) {
 		t.Fatal("expected validation error for invalid resilience config")
 	}
 }
+
+func TestSpecPreservesCandidateInputSchema(t *testing.T) {
+	spec := pipeline.New("demo").
+		Input(
+			input.String("city"),
+			input.Candidates(
+				input.String("id"),
+				input.String("name"),
+			),
+		).
+		Candidates("rank", op.Take(10))
+
+	if got, want := len(spec.Inputs), 2; got != want {
+		t.Fatalf("unexpected input count: got %d want %d", got, want)
+	}
+	if got, want := spec.Inputs[1].Kind, input.KindCandidates; got != want {
+		t.Fatalf("unexpected input kind: got %q want %q", got, want)
+	}
+	if got, want := len(spec.Inputs[1].Fields), 2; got != want {
+		t.Fatalf("unexpected candidate schema field count: got %d want %d", got, want)
+	}
+}

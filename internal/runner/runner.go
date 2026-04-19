@@ -122,10 +122,12 @@ func (r *Runner) Execute(ctx context.Context, req ExecuteRequest) (ExecuteResult
 	}
 
 	contextFields := copyMap(req.Context)
+	candidateFields := copyCandidateMaps(req.Candidates)
 	if req.NormalizeInput {
 		contextFields = normalizeContextForInputs(registered.Spec, contextFields)
+		candidateFields = normalizeCandidatesForInputs(registered.Spec, candidateFields)
 	}
-	if err := validateInput(registered.Spec, contextFields); err != nil {
+	if err := validateInput(registered.Spec, contextFields, candidateFields); err != nil {
 		return ExecuteResult{}, &InvalidInputError{Message: err.Error()}
 	}
 
@@ -136,7 +138,7 @@ func (r *Runner) Execute(ctx context.Context, req ExecuteRequest) (ExecuteResult
 
 	initial := runtime.State{
 		Context:    runtime.Context(copyMap(contextFields)),
-		Candidates: toCandidates(req.Candidates),
+		Candidates: toCandidates(candidateFields),
 		Meta: runtime.Meta{
 			RequestID: requestID,
 			Pipeline:  registered.FullName,
@@ -220,20 +222,70 @@ func loadConfig(path string) (*appconfig.AppConfig, error) {
 	return appconfig.Load()
 }
 
-func validateInput(spec *dslpipeline.Spec, fields map[string]any) error {
+func validateInput(spec *dslpipeline.Spec, fields map[string]any, candidates []map[string]any) error {
 	if spec == nil {
 		return fmt.Errorf("pipeline spec must not be nil")
 	}
 	for _, current := range spec.Inputs {
-		value, ok := fields[current.Name]
-		if !ok {
-			return fmt.Errorf("missing required input %q", current.Name)
-		}
-		if !matchesInputKind(current.Kind, value) {
-			return fmt.Errorf("input %q must be %s, got %T", current.Name, current.Kind, value)
+		if err := validateInputField(current, current.Name, fields, candidates); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func validateInputField(field input.Field, path string, values map[string]any, candidates []map[string]any) error {
+	if field.Kind == input.KindCandidates {
+		if candidates == nil {
+			return fmt.Errorf("missing required input %q", path)
+		}
+		for i, candidate := range candidates {
+			if candidate == nil {
+				return fmt.Errorf("input %q[%d] must be object, got <nil>", path, i)
+			}
+			for _, nested := range field.Fields {
+				if err := validateValueField(nested, fmt.Sprintf("%s[%d].%s", path, i, nested.Name), candidate); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+
+	return validateValueField(field, path, values)
+}
+
+func validateValueField(field input.Field, path string, values map[string]any) error {
+	value, ok := values[field.Name]
+	if !ok {
+		return fmt.Errorf("missing required input %q", path)
+	}
+	if !matchesInputField(field, value) {
+		return fmt.Errorf("input %q must be %s, got %T", path, field.Kind, value)
+	}
+	return nil
+}
+
+func matchesInputField(field input.Field, value any) bool {
+	if field.Kind == input.KindCandidates {
+		items, ok := toCandidateMaps(value)
+		if !ok {
+			return false
+		}
+		for _, item := range items {
+			if item == nil {
+				return false
+			}
+			for _, nested := range field.Fields {
+				nestedValue, ok := item[nested.Name]
+				if !ok || !matchesInputField(nested, nestedValue) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return matchesInputKind(field.Kind, value)
 }
 
 func matchesInputKind(kind input.Kind, value any) bool {
@@ -269,6 +321,52 @@ func normalizeContextForInputs(spec *dslpipeline.Spec, fields map[string]any) ma
 	for _, current := range spec.Inputs {
 		value, ok := normalized[current.Name]
 		if !ok {
+			continue
+		}
+		normalized[current.Name] = coerceInputValue(current.Kind, value)
+	}
+	return normalized
+}
+
+func normalizeCandidatesForInputs(spec *dslpipeline.Spec, candidates []map[string]any) []map[string]any {
+	normalized := copyCandidateMaps(candidates)
+	if spec == nil {
+		return normalized
+	}
+
+	for _, current := range spec.Inputs {
+		if current.Kind != input.KindCandidates {
+			continue
+		}
+		for i, candidate := range normalized {
+			if candidate == nil {
+				continue
+			}
+			normalized[i] = normalizeValueFields(current.Fields, candidate)
+		}
+	}
+	return normalized
+}
+
+func normalizeValueFields(fields []input.Field, values map[string]any) map[string]any {
+	normalized := copyMap(values)
+	for _, current := range fields {
+		value, ok := normalized[current.Name]
+		if !ok {
+			continue
+		}
+		if current.Kind == input.KindCandidates {
+			items, ok := toCandidateMaps(value)
+			if !ok {
+				continue
+			}
+			for i, item := range items {
+				if item == nil {
+					continue
+				}
+				items[i] = normalizeValueFields(current.Fields, item)
+			}
+			normalized[current.Name] = items
 			continue
 		}
 		normalized[current.Name] = coerceInputValue(current.Kind, value)
@@ -336,6 +434,36 @@ func copyMap(in map[string]any) map[string]any {
 		out[key] = value
 	}
 	return out
+}
+
+func copyCandidateMaps(in []map[string]any) []map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make([]map[string]any, len(in))
+	for i, candidate := range in {
+		out[i] = copyMap(candidate)
+	}
+	return out
+}
+
+func toCandidateMaps(value any) ([]map[string]any, bool) {
+	switch current := value.(type) {
+	case []map[string]any:
+		return copyCandidateMaps(current), true
+	case []any:
+		out := make([]map[string]any, len(current))
+		for i, item := range current {
+			candidate, ok := item.(map[string]any)
+			if !ok {
+				return nil, false
+			}
+			out[i] = copyMap(candidate)
+		}
+		return out, true
+	default:
+		return nil, false
+	}
 }
 
 func newRequestID() string {

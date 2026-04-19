@@ -33,7 +33,11 @@ func (ContextMutateExecutor) Execute(ctx context.Context, node pipeline.Compiled
 			}
 			out[current.Field] = value
 		case *op.DropOp:
-			delete(out, current.Field)
+			for _, field := range current.Fields {
+				delete(out, field)
+			}
+		case *op.DropExceptOp:
+			out = keepOnlyMap(out, current.Fields)
 		default:
 			return runtime.NodeOutput{}, fmt.Errorf("node %s unsupported context mutate op %T", node.ID, raw)
 		}

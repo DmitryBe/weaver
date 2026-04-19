@@ -24,6 +24,10 @@ func buildSimpleScoreCandidates() *pipeline.Spec {
 		Resilience(resilient.Default(100*time.Millisecond, 3)).
 		Input(
 			input.String("user_id"),
+			input.Candidates(
+				input.Int("id"),
+				input.Float("rating"),
+			),
 		).
 		Candidates(
 			"cand_score",
@@ -36,7 +40,7 @@ func buildSimpleScoreCandidates() *pipeline.Spec {
 							"candidates",
 							request.ForEachCandidate(
 								request.Object(
-									request.Field("id", expr.Candidate("brand_id")),
+									request.Field("id", expr.Candidate("id")),
 									request.Field("rating", expr.Candidate("rating")),
 								),
 							),
@@ -50,5 +54,6 @@ func buildSimpleScoreCandidates() *pipeline.Spec {
 			"post_rank",
 			op.SortBy("score", op.Desc),
 			op.Take(10),
+			op.DropExcept("id", "score"),
 		)
 }
