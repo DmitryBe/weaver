@@ -17,7 +17,6 @@ import (
 
 func TestContextFetchExecutorAppliesDefaults(t *testing.T) {
 	executor := ContextFetchExecutor{}
-	store := testutil.NewCountingFeatureStore(featurestore.NewFileStore(filepath.Join("..", "..", "testdata", "featurestore", "unit")))
 	node := pipeline.CompiledNode{
 		ID:   "ctx_fetch",
 		Kind: pipeline.NodeKindContextFetch,
@@ -36,7 +35,9 @@ func TestContextFetchExecutorAppliesDefaults(t *testing.T) {
 			},
 		},
 		&runtime.ExecEnv{
-			FeatureStore: store,
+			FeatureStore: fakeNodeFeatureStore{
+				rows: []map[string]any{{"user/segment": 0.75}},
+			},
 		},
 	)
 	if err != nil {
@@ -48,9 +49,6 @@ func TestContextFetchExecutorAppliesDefaults(t *testing.T) {
 	}
 	if got, want := out.Context["missing"], 99; got != want {
 		t.Fatalf("unexpected defaulted field: got %v want %v", got, want)
-	}
-	if got, want := store.Calls(), 1; got != want {
-		t.Fatalf("unexpected feature store call count: got %d want %d", got, want)
 	}
 }
 

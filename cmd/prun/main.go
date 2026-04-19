@@ -26,7 +26,6 @@ type options struct {
 type output struct {
 	RequestID  string             `json:"request_id"`
 	Pipeline   string             `json:"pipeline"`
-	Context    map[string]any     `json:"context"`
 	Candidates []map[string]any   `json:"candidates"`
 	DebugInfo  *runtime.DebugInfo `json:"debug_info,omitempty"`
 }
@@ -79,7 +78,6 @@ func runWithOptions(ctx context.Context, opts options) (output, error) {
 	return output{
 		RequestID:  result.RequestID,
 		Pipeline:   result.Pipeline,
-		Context:    copyMap(map[string]any(result.State.Context)),
 		Candidates: toResponse(result.State.Candidates),
 		DebugInfo:  result.DebugInfo,
 	}, nil

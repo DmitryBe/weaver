@@ -5,3 +5,9 @@ feature_store_fetch_max_parallelism: 4
 feature_store:
   type: file
   dir: testdata/featurestore/playground
+
+cache:
+  type: inmemory_lru
+  default_ttl: 1m
+  inmemory_lru:
+    capacity: 256

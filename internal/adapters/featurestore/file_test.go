@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/dmitryBe/weaver/internal/runtime"
@@ -73,5 +74,21 @@ func TestFileStoreFetchOmitsMissingFeaturesAndPreservesOrder(t *testing.T) {
 	}
 	if got, want := rows[1]["brand/rating"], 4.8; got != want {
 		t.Fatalf("unexpected rating: got %v want %v", got, want)
+	}
+}
+
+func TestFileStoreFetchFailsForUnregisteredFeature(t *testing.T) {
+	store := NewFileStore(filepath.Join("..", "..", "..", "testdata", "featurestore", "unit"))
+
+	_, err := store.Fetch(
+		context.Background(),
+		[]string{"user/segment11"},
+		runtime.Key{"user_id": "u1"},
+	)
+	if err == nil {
+		t.Fatal("expected unregistered feature fetch to fail")
+	}
+	if !strings.Contains(err.Error(), `feature "user/segment11" is not registered`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

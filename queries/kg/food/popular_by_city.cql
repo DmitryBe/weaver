@@ -8,4 +8,4 @@ RETURN
     row.brand_name  AS brand_name,
     round(toFloat(row.restaurantCount) / maxCount, 4) AS score
 ORDER BY score DESC
-LIMIT 5
+LIMIT 25

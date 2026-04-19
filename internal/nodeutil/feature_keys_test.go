@@ -1,6 +1,7 @@
 package nodeutil
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/dmitryBe/weaver/internal/dsl/expr"
@@ -36,5 +37,15 @@ func TestMergeFeatureKeysConflict(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected merge conflict")
+	}
+}
+
+func TestBuildFeatureKeyFailsForUnregisteredEntity(t *testing.T) {
+	_, err := BuildFeatureKey("user1/segment", expr.Context("user_id"), runtime.State{}, nil)
+	if err == nil {
+		t.Fatal("expected unregistered entity error")
+	}
+	if !strings.Contains(err.Error(), `feature entity "user1" is not registered for "user1/segment"`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

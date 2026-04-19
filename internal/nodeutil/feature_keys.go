@@ -78,7 +78,7 @@ func inferFeatureKeyFields(source string) ([]string, error) {
 	case "brand_user":
 		return []string{"brand_id", "user_id"}, nil
 	default:
-		return nil, fmt.Errorf("unsupported feature entity %q for %q", entity, source)
+		return nil, fmt.Errorf("feature entity %q is not registered for %q", entity, source)
 	}
 }
 

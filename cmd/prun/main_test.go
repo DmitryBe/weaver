@@ -72,7 +72,7 @@ func TestParseArgsRejectsEmptyContextBlock(t *testing.T) {
 	}
 }
 
-func TestExecutePipelineReturnsContextAndCandidates(t *testing.T) {
+func TestExecutePipelineReturnsCandidatesOnly(t *testing.T) {
 	current := runnerForPRunTest(t)
 
 	executed, err := current.Execute(
@@ -94,7 +94,6 @@ func TestExecutePipelineReturnsContextAndCandidates(t *testing.T) {
 	result := output{
 		RequestID:  executed.RequestID,
 		Pipeline:   executed.Pipeline,
-		Context:    copyMap(map[string]any(executed.State.Context)),
 		Candidates: toResponse(executed.State.Candidates),
 	}
 
@@ -103,9 +102,6 @@ func TestExecutePipelineReturnsContextAndCandidates(t *testing.T) {
 	}
 	if got, want := result.Pipeline, "test_suite.trending_cli"; got != want {
 		t.Fatalf("unexpected pipeline: got %q want %q", got, want)
-	}
-	if got, want := result.Context["city_copy"], "almaty"; got != want {
-		t.Fatalf("unexpected context value: got %#v want %#v", got, want)
 	}
 	if got, want := len(result.Candidates), 2; got != want {
 		t.Fatalf("unexpected candidate count: got %d want %d", got, want)
@@ -140,7 +136,6 @@ func TestRunWithOptionsIncludesDebugSnapshots(t *testing.T) {
 	result := output{
 		RequestID:  executed.RequestID,
 		Pipeline:   executed.Pipeline,
-		Context:    copyMap(map[string]any(executed.State.Context)),
 		Candidates: toResponse(executed.State.Candidates),
 		DebugInfo:  executed.DebugInfo,
 	}

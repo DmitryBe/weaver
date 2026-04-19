@@ -34,6 +34,9 @@ func (s *FileStore) Fetch(ctx context.Context, features []string, keys ...runtim
 	if err != nil {
 		return nil, err
 	}
+	if err := validateRegisteredFeatures(entityData, features); err != nil {
+		return nil, err
+	}
 
 	rows := make([]map[string]any, len(keys))
 	for i, key := range keys {
@@ -50,6 +53,22 @@ func (s *FileStore) Fetch(ctx context.Context, features []string, keys ...runtim
 		rows[i] = row
 	}
 	return rows, nil
+}
+
+func validateRegisteredFeatures(entityData map[string]map[string]any, features []string) error {
+	registered := make(map[string]struct{})
+	for _, record := range entityData {
+		for feature := range record {
+			registered[feature] = struct{}{}
+		}
+	}
+
+	for _, feature := range features {
+		if _, ok := registered[feature]; !ok {
+			return fmt.Errorf("feature %q is not registered", feature)
+		}
+	}
+	return nil
 }
 
 func (s *FileStore) loadEntity(entity string) (map[string]map[string]any, error) {

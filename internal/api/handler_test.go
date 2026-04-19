@@ -806,6 +806,23 @@ func TestDefaultRegistryIncludesSimpleRetrievePipeline(t *testing.T) {
 	}
 }
 
+func TestDefaultRegistryIncludesSimpleRetrieveKGPipeline(t *testing.T) {
+	if err := pipeline.DefaultRegistry.BuildAll(); err != nil {
+		t.Fatalf("BuildAll failed: %v", err)
+	}
+
+	registered, ok := pipeline.DefaultRegistry.Get("sandbox.simple_retrieve_kg")
+	if !ok {
+		t.Fatal("expected sandbox.simple_retrieve_kg in default registry")
+	}
+	if registered.Spec == nil {
+		t.Fatal("expected built spec")
+	}
+	if registered.Plan == nil {
+		t.Fatal("expected compiled plan")
+	}
+}
+
 func TestDefaultRegistryIncludesSimpleScorePipeline(t *testing.T) {
 	if err := pipeline.DefaultRegistry.BuildAll(); err != nil {
 		t.Fatalf("BuildAll failed: %v", err)
